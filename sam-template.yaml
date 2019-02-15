@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-app
+  Sample SAM Template for sam-app
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+
+Parameters:
+  SwaggerUri:
+    Type: String
+
+Resources:
+
+  # Note if you don't explicitly create an IAM role, SAM will create one for you
+  # We need create explicitly, in order to attach permisssions boundary
+  # (using the "managed-permission-boundary" policy soon to be rolled out and
+  # and mandated in Intelematics acounts)
+  # Because - we're prohibited from creating IAM Roles without a perm boundary set
+  HelloWorldFunctionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      PermissionsBoundary: !Join
+        - ""
+        - - "arn:aws:iam::"
+          - !Ref "AWS::AccountId"
+          - ":policy/managed-permission-boundary"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Sid: "AllowLambdaServiceToAssumeRole"
+          Effect: "Allow"
+          Action:
+          - "sts:AssumeRole"
+          Principal:
+            Service:
+              - "lambda.amazonaws.com"
+
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: hello-world/
+      Handler: app.lambdaHandler
+      Role: !GetAtt HelloWorldFunctionRole.Arn
+      Runtime: nodejs8.10
+
+      Events:
+        HelloWorld:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versins/2016-10-31.md#api
+          Properties:
+            Path: /hello
+            Method: get
+
+  # DefinitionBody included via cfn include, to allow us to use CFN variables within swagger (refer to lambdas defined here)
+  HelloWorldApiDupe:
+    Name: Hello World API Dupe with Swagger spec
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: s
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: !Ref SwaggerUri
+
+  # Grant ability for API Gateway to execute lambda
+  HelloWorldApiPerms:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - HelloWorldApiDupe
+      - HelloWorldFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref HelloWorldFunction
+      Principal: apigateway.amazonaws.com
+
+Outputs:
+
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+
+  HelloWorldFunction:
+    Description: "Hello World Lambda Function ARN"
+    Value: !GetAtt HelloWorldFunction.Arn
+
+  HelloWorldFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt HelloWorldFunctionRole.Arn

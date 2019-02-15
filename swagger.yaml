@@ -1,0 +1,38 @@
+swagger: '2.0'
+# 2.0 chosen because that's what the example was in ... probably more likely to
+#   find more examples to copy/past on net too ...
+# https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md
+info:
+  title: API Gateway Demo - From Swagger
+  description: blabla
+  version: "1.0.0"
+# the domain of the service
+host: execute-api.us-east-1.amazonaws.com
+
+# array of all schemes that your API supports
+schemes:
+  - https
+
+# will be prefixed to all paths
+basePath: /
+produces:
+  - application/json
+paths:
+  /hello:
+    get:
+      summary: Gets a greeting
+      description: |
+        so good
+        so, so good
+      produces:
+        - application/json
+      responses:
+        200:
+          description: Everything's ok!
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        # Even though this is for an incoming GET request, the INTEGRATION is
+        # done using a POST. Confusing hey.
+        httpMethod: POST
+        uri:
+          "Fn::Sub": "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HelloWorldFunction.Arn}/invocations"
